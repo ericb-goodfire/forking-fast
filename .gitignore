@@ -1,0 +1,6 @@
+worktrees/
+resource-checkouts/
+.silico/local/
+settings.json
+settings.json.lock
+project.toml
