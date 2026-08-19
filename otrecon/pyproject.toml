@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "otrecon"
+version = "1.0.0"
+description = "Outcome-trajectory reconstruction from reduced sampling runs: smoothing models (including the segment-kernel Full Model), cross-validated tuning, metrics, and the replicate fan."
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.11",
+    "ruptures>=1.1",
+]
+
+[project.optional-dependencies]
+# needed only to rebuild the standalone dashboard HTML
+dashboard = [
+    "plotly>=5.18",
+]
+test = [
+    "pytest>=8",
+]
+
+[tool.setuptools.packages.find]
+include = ["otrecon*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

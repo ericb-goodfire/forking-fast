@@ -1,6 +1,12 @@
-worktrees/
-resource-checkouts/
-.silico/local/
-settings.json
-settings.json.lock
-project.toml
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.DS_Store
+# local rebuild outputs
+payloads/
+dashboard_standalone.html

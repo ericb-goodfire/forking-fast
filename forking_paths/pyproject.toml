@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "forking-paths"
+version = "1.0.0"
+description = "Prefix-cached Forking Paths sampling for open-weight LLMs: base-path decode, branch enumeration, batched resampling, and compact per-question outcome stores."
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.24",
+]
+
+[project.optional-dependencies]
+# GPU sampling stack (collection only; analysis of the released stores is CPU-only)
+gpu = [
+    "torch>=2.1",
+    "transformers>=4.40",
+]
+test = [
+    "pytest>=8",
+]
+
+[tool.setuptools.packages.find]
+include = ["forking_paths*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
