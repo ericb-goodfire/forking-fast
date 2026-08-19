@@ -386,28 +386,6 @@ def build_tasks(questions: dict) -> list:
     return tasks
 
 
-def canonical_tasks(tracks: list, rows: list, s_grid=S_GRID,
-                    strides=STRIDES, n_total=N_TOTAL) -> list:
-    """The task list build_tasks() produces once every question is
-    prepared (n_total is asserted == N_TOTAL in prepare_question), without
-    needing the questions — lets a shard prepare only the questions it
-    runs. Order defines the canonical (shard-merge) record order."""
-    return [(track, row, S, stride, rep)
-            for track in tracks for row in rows
-            for S in s_grid
-            for stride in strides[track]
-            for rep in range(n_total // S)]
-
-
-def parse_shard(spec: str) -> tuple[int, int]:
-    """'i/N' -> (i, N) with 0 <= i < N; shard i runs tasks[i::N]."""
-    i_s, n_s = spec.split("/")
-    i, n = int(i_s), int(n_s)
-    if not (0 <= i < n):
-        raise ValueError(f"bad shard spec {spec!r}")
-    return i, n
-
-
 def question_meta(q: dict, floors: dict) -> dict:
     return {"K": q["K"], "categories": q["categories"],
             "n_total": q["n_total"], "idxs": q["idxs"],
@@ -425,48 +403,32 @@ def run_fan(args):
     tracks = args.tracks.split(",")
     rows = ([int(r) for r in args.rows_list.split(",")] if args.rows_list
             else ROWS)
-    tasks = canonical_tasks(tracks, rows)
+    for track in tracks:
+        for row in rows:
+            _QUESTIONS[(track, row)] = prepare_question(
+                rec_path(args.data_dir, track, row), track)
+        print(f"[{time.time()-t0:6.1f}s] prepared {len(rows)} {track} "
+              f"questions", flush=True)
+    tasks = build_tasks(_QUESTIONS)
     if args.limit:
         rng = np.random.default_rng(58)
         sel = rng.choice(len(tasks), size=min(args.limit, len(tasks)),
                         replace=False)
         tasks = [tasks[i] for i in sel]
-    shard = None
-    if args.shard:
-        shard = parse_shard(args.shard)
-        tasks = tasks[shard[0]::shard[1]]
-    write_meta = args.write_meta or args.meta_only or shard is None
-    needed = {(t, r) for (t, r, _, _, _) in tasks}
-    for track in tracks:
-        n_prep = 0
-        for row in rows:
-            if write_meta or (track, row) in needed:
-                _QUESTIONS[(track, row)] = prepare_question(
-                    rec_path(args.data_dir, track, row), track)
-                n_prep += 1
-        print(f"[{time.time()-t0:6.1f}s] prepared {n_prep} {track} "
-              f"questions", flush=True)
-    print(f"[{time.time()-t0:6.1f}s] {len(tasks)} replicate tasks"
-          + (f" (shard {shard[0]}/{shard[1]})" if shard else "")
-          + f", {args.workers} workers", flush=True)
+    print(f"[{time.time()-t0:6.1f}s] {len(tasks)} replicate tasks, "
+          f"{args.workers} workers", flush=True)
     def report_progress(**kw):
         pass
     os.makedirs(args.out, exist_ok=True)
     # questions meta (with noise floors) per track
-    if write_meta:
-        for track in tracks:
-            qmeta = {str(row): question_meta(q, noise_floors(q["gt"]))
-                     for (tr, row), q in _QUESTIONS.items() if tr == track}
-            with open(os.path.join(args.out, f"questions_{track}.json"),
-                      "w") as f:
-                json.dump(qmeta, f)
-        print(f"[{time.time()-t0:6.1f}s] wrote questions meta (incl. noise "
-              f"floors)", flush=True)
-    if args.meta_only:
-        print(f"[{time.time()-t0:6.1f}s] --meta-only: done", flush=True)
-        return 0
-    if shard is not None and not args.shard_tag:
-        args.shard_tag = f"shard{shard[0]}of{shard[1]}"
+    for track in tracks:
+        qmeta = {str(row): question_meta(q, noise_floors(q["gt"]))
+                 for (tr, row), q in _QUESTIONS.items() if tr == track}
+        with open(os.path.join(args.out, f"questions_{track}.json"),
+                  "w") as f:
+            json.dump(qmeta, f)
+    print(f"[{time.time()-t0:6.1f}s] wrote questions meta (incl. noise "
+          f"floors)", flush=True)
     shard_tag = f".{args.shard_tag}" if args.shard_tag else ""
     out_path = os.path.join(args.out, f"fan{shard_tag}.jsonl")
     n_err = 0
@@ -487,7 +449,6 @@ def run_fan(args):
             "arms": list(ARMS), "fixed_params": FIXED_PARAMS,
             "jump_radius": JUMP_RADIUS, "jump_thresh": JUMP_THRESH,
             "seed_base": SEED_BASE, "tracks": tracks, "rows": rows,
-            "shard": args.shard or None,
             "n_tasks": len(tasks), "n_errors": n_err,
             "runtime_s": round(time.time() - t0, 1)}
     with open(os.path.join(args.out, f"fan_meta{shard_tag}.json"),
@@ -929,15 +890,6 @@ def main():
     ap.add_argument("--tracks", default="llama,deepseek")
     ap.add_argument("--rows-list", default="")
     ap.add_argument("--shard-tag", default="")
-    ap.add_argument("--shard", default="",
-                    help="'i/N': run tasks[i::N] of the canonical task "
-                         "list (merge with src/merge_shards.py)")
-    ap.add_argument("--meta-only", action="store_true",
-                    help="write questions meta (incl. noise floors) and "
-                         "exit without running fan tasks")
-    ap.add_argument("--write-meta", action="store_true",
-                    help="also write questions meta from a sharded run "
-                         "(default: meta skipped when --shard is set)")
     ap.add_argument("--workers", type=int, default=os.cpu_count())
     ap.add_argument("--limit", type=int, default=0)
     args = ap.parse_args()

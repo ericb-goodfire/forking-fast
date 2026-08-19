@@ -1,4 +1,4 @@
-"""Unit tests for the #44 drift-aware hybrids (toy fixtures only)."""
+"""Unit tests for the drift-aware hybrids (toy fixtures only)."""
 import numpy as np
 import pytest
 from ruptures.base import BaseCost
@@ -13,7 +13,7 @@ from otrecon.synthetic import make_ramp_jump, make_synthetic, synthetic_draws
 
 
 def test_costs_are_base_cost():
-    # ruptures SILENTLY falls back to CostL2 otherwise (the #43 M4 bug).
+    # ruptures SILENTLY falls back to CostL2 otherwise (the legacy M4 bug).
     assert isinstance(MultinomialCost(), BaseCost)
     assert isinstance(LogitLinearCost(), BaseCost)
 
@@ -119,7 +119,7 @@ def test_m5b_slope_report_shape():
 
 
 def test_m4l2_matches_legacy_fallback_behavior():
-    """The 'l2' variant reproduces what #43's M4 actually did (Pelt silently
+    """The 'l2' variant reproduces what the legacy M4 actually did (Pelt silently
     using CostL2 when handed a non-BaseCost custom cost)."""
     import ruptures as rpt
 

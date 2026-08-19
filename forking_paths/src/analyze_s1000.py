@@ -14,13 +14,15 @@ semantics kept verbatim, block sizes generalized from 200 to 1000 total draws):
     positions. 50 blocks at S=20, 20 at S=50, 10 at S=100, 5 at S=200.
   * exact iid null per S: resample every branch's draws i.i.d. from its POOLED
     1000-draw histogram, run through the identical block/TV statistic
-    (#33's calibration, S_full=1000).
+    (the reference run's calibration, S_full=1000).
   * cross-run anchor at S=200: TV between each of our 5 disjoint S=200 blocks
-    and #33's independent full S=200 o_t on the same rows/grids, averaged;
+    and the reference run's independent full S=200 o_t on the same rows/grids,
+    averaged;
     compared with the within-run S=200 replicate TV. Both runs have uniform S
     at every position (incl. t=0), so all positions enter; the t>0 restriction
-    is also reported for symmetry with #33. Supplementary: the same cross-run
-    TV at S=20/50/100 using #33's nested prefixes.
+    is also reported for symmetry with the reference run. Supplementary: the
+    same cross-run TV at S=20/50/100 using the reference run's nested
+    prefixes.
 
 Decision rule (pre-registered, plan Q1): supported = replicate TV monotone
 decreasing over S in {20,50,100,200} with log-log slope near -1/2 AND null
@@ -114,7 +116,8 @@ def iid_null_tv(rec, S, n_reps=200, seed=0):
 
 
 def analyze_question(rec, ref_rec=None):
-    """rec: merged S=1000 record. ref_rec: #33's s200 record for the same row."""
+    """rec: merged S=1000 record. ref_rec: the reference run's s200 record
+    for the same row."""
     branches = [_B(b) for b in rec["branches"]]
     S_full = rec["s"]
     idxs = list(rec["idxs"])
@@ -158,12 +161,12 @@ def analyze_question(rec, ref_rec=None):
                            for i, j in itertools.combinations(range(nb200), 2)])
     rep[200]["mean_interleaved"] = float(inter_tv.mean())
 
-    # cross-run anchor vs #33 (independent run, same base path & grid)
+    # cross-run anchor vs the reference run (independent, same base path & grid)
     anchor = None
     if ref_rec is not None:
         ref_idxs = list(ref_rec["idxs"])
         assert ref_idxs == idxs, \
-            f"row {rec['meta']['row_id']}: #33 grid differs from ours"
+            f"row {rec['meta']['row_id']}: reference grid differs from ours"
         # branch sets must be identical (same (t, tok_id) with equal tok_p and
         # is_base flags), otherwise the anchor compares different estimands
         ours = {(b["t"], b["tok_id"]): (round(b["tok_p"], 8), b["is_base"])
@@ -171,12 +174,12 @@ def analyze_question(rec, ref_rec=None):
         refs = {(b["t"], b["tok_id"]): (round(b["tok_p"], 8), b["is_base"])
                 for b in ref_rec["branches"]}
         assert ours == refs, \
-            f"row {rec['meta']['row_id']}: branch set / tok_p differs from #33"
+            f"row {rec['meta']['row_id']}: branch set / tok_p differs from the reference run"
         ref_branches = [_B(b) for b in ref_rec["branches"]]
-        # headline: S=200 — our 5 disjoint blocks vs #33's full S=200 o_t
+        # headline: S=200 — our 5 disjoint blocks vs the reference full S=200 o_t
         ref200 = np.asarray(ref_rec["o_t_full"], dtype=float)
         cross200 = np.asarray([tv(blk, ref200) for blk in blocks_cache[200]])
-        # supplementary: cross-run TV at every S (our block k vs #33 block k,
+        # supplementary: cross-run TV at every S (our block k vs reference block k,
         # min(#blocks) pairs of independent same-S estimates)
         supp = {}
         for S in S_REP:
@@ -228,7 +231,7 @@ def pooled_verdict(per_q):
     monotone = bool(np.all(np.diff(tv_arr) < 0))
     ref_curve = tv_arr[0] * np.sqrt(s_arr[0] / s_arr)
     null_ratio = (tv_arr / null_arr).tolist()
-    # tail segment S=100 -> 200 (the octave #33 could not see)
+    # tail segment S=100 -> 200 (the octave the reference run could not see)
     tail_slope = float((np.log(tv_arr[3]) - np.log(tv_arr[2]))
                        / (np.log(s_arr[3]) - np.log(s_arr[2])))
     consistent_with_null = bool(np.all(np.abs(np.log(tv_arr / null_arr)) < np.log(1.15)))
@@ -255,7 +258,7 @@ def main():
     ap.add_argument("--merged-dir", required=True,
                     help="dir of merged s1000_llama_rowNNN.json files")
     ap.add_argument("--ref-s200-dir", required=True,
-                    help="dir of #33 s200_llama_rowNNN.json files")
+                    help="dir of the reference run s200_llama_rowNNN.json files")
     ap.add_argument("--out-dir", required=True)
     args = ap.parse_args()
     os.makedirs(args.out_dir, exist_ok=True)

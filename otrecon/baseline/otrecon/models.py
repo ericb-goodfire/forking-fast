@@ -21,8 +21,6 @@ per segment into a Dirichlet posterior.
 """
 from __future__ import annotations
 
-import os
-
 import numpy as np
 from ruptures.base import BaseCost
 from scipy import optimize, stats
@@ -441,71 +439,6 @@ class LogitLinearCost(BaseCost):
 
 
 _SEG_CACHE: dict = {}
-_COST_CACHE: dict = {}
-
-# min_size per detection variant: mult/l2 run Pelt(min_size=2), linear
-# runs Pelt(min_size=3) (and CostL2.min_size=1 < 2 never binds).
-_VARIANT_MIN_SIZE = {"mult": 2, "linear": 3, "l2": 2}
-
-
-def _segment_positions_ruptures(obs_tok: np.ndarray, counts: np.ndarray,
-                                variant: str, pen: float) -> list[int]:
-    """The original ruptures path, kept verbatim as the
-    equivalence reference for the fast path and as an escape hatch
-    (OTRECON_FORCE_RUPTURES=1)."""
-    import ruptures as rpt
-    if variant == "mult":
-        algo = rpt.Pelt(custom_cost=MultinomialCost(), min_size=2,
-                        jump=1).fit(counts)
-        return algo.predict(pen=float(pen))
-    if variant == "linear":
-        y, w = _empirical_logits(counts)
-        sig = np.hstack([obs_tok[:, None], y, w])
-        algo = rpt.Pelt(custom_cost=LogitLinearCost(), min_size=3,
-                        jump=1).fit(sig)
-        return algo.predict(pen=float(pen))
-    if variant == "l2":
-        algo = rpt.Pelt(model="l2", min_size=2, jump=1).fit(counts)
-        return algo.predict(pen=float(pen))
-    raise ValueError(f"unknown detection variant {variant!r}")
-
-
-def _cost_matrix_for(obs_tok: np.ndarray, counts: np.ndarray,
-                     variant: str) -> np.ndarray:
-    """All-pairs segment-cost matrix for the fast PELT, cached per
-    (counts[, positions], variant) and shared across all penalties (and,
-    via the caller, across CV kernel-bandwidth candidates)."""
-    from . import fastseg
-    if variant == "linear":
-        key = (obs_tok.tobytes(), counts.tobytes(), "linear")
-    else:
-        key = (counts.tobytes(), variant)
-    hit = _COST_CACHE.get(key)
-    if hit is not None:
-        return hit
-    if variant == "mult":
-        C = fastseg.mult_cost_matrix(counts)
-    elif variant == "linear":
-        y, w = _empirical_logits(counts)
-        C = fastseg.linear_cost_matrix(obs_tok, y, w)
-    elif variant == "l2":
-        C = fastseg.l2_cost_matrix(counts)
-    else:
-        raise ValueError(f"unknown detection variant {variant!r}")
-    if len(_COST_CACHE) > 64:
-        _COST_CACHE.clear()
-    _COST_CACHE[key] = C
-    return C
-
-
-def _segment_positions_fast(obs_tok: np.ndarray, counts: np.ndarray,
-                            variant: str, pen: float) -> list[int]:
-    """ruptures-identical breakpoints via otrecon.fastseg (see its
-    bit-exactness contract)."""
-    from . import fastseg
-    C = _cost_matrix_for(obs_tok, counts, variant)
-    return fastseg.pelt_breakpoints(C, len(obs_tok), float(pen),
-                                    _VARIANT_MIN_SIZE[variant])
 
 
 def segment_positions(obs_tok: np.ndarray, counts: np.ndarray,
@@ -515,9 +448,8 @@ def segment_positions(obs_tok: np.ndarray, counts: np.ndarray,
     (LogitLinearCost on the empirical logit series), or 'l2' (CostL2 on raw
     counts — the original M4 behavior via the silent fallback).
     Memoized: the CV grid reuses segmentations across smoothing
-    hyperparameters. By default the breakpoints are computed by the exact
-    fast reimplementation in ``otrecon.fastseg`` (identical output;
-    OTRECON_FORCE_RUPTURES=1 restores the legacy path)."""
+    hyperparameters."""
+    import ruptures as rpt
     obs_tok = np.asarray(obs_tok, float)
     counts = np.asarray(counts, float)
     key = (obs_tok.tobytes(), counts.tobytes(), variant, float(pen))
@@ -525,15 +457,24 @@ def segment_positions(obs_tok: np.ndarray, counts: np.ndarray,
     if hit is not None:
         return hit
     n = len(obs_tok)
-    if variant not in _VARIANT_MIN_SIZE:
-        raise ValueError(f"unknown detection variant {variant!r}")
     min_size = 2 if variant == "mult" else 3
     if n < 2 * min_size:
         bkps = [n]
-    elif os.environ.get("OTRECON_FORCE_RUPTURES"):
-        bkps = _segment_positions_ruptures(obs_tok, counts, variant, pen)
+    elif variant == "mult":
+        algo = rpt.Pelt(custom_cost=MultinomialCost(), min_size=2,
+                        jump=1).fit(counts)
+        bkps = algo.predict(pen=float(pen))
+    elif variant == "linear":
+        y, w = _empirical_logits(counts)
+        sig = np.hstack([obs_tok[:, None], y, w])
+        algo = rpt.Pelt(custom_cost=LogitLinearCost(), min_size=3,
+                        jump=1).fit(sig)
+        bkps = algo.predict(pen=float(pen))
+    elif variant == "l2":
+        algo = rpt.Pelt(model="l2", min_size=2, jump=1).fit(counts)
+        bkps = algo.predict(pen=float(pen))
     else:
-        bkps = _segment_positions_fast(obs_tok, counts, variant, pen)
+        raise ValueError(f"unknown detection variant {variant!r}")
     if len(_SEG_CACHE) > 20000:
         _SEG_CACHE.clear()
     _SEG_CACHE[key] = bkps

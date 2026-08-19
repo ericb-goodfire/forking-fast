@@ -37,7 +37,7 @@ toggleable markers.
 | Path | What it is |
 | --- | --- |
 | `forking_paths/` | GPU sampling package: prefix-cached base-path decode, branch enumeration, batched resampling, outcome extraction, store schema. Plus the S=1000 merge/analysis utilities (`src/`) and CPU unit tests. |
-| `otrecon/` | CPU reconstruction package: smoothing models (raw counts, segment pooling, the segment-kernel Full Model and hybrids), cross-validated tuning, TV/log-likelihood metrics, the replicate fan, and the power-analysis driver (`src/run_scale.py`). 63 unit tests. |
+| `otrecon/` | CPU reconstruction package: smoothing models (raw counts, segment pooling, the segment-kernel Full Model and hybrids), cross-validated tuning, TV/log-likelihood metrics, the replicate fan, and an exact fast PELT reimplementation (`fastseg.py`; optional numba JIT, pure-numpy fallback). Drivers in `src/` (power analysis, component ablation, shard merging), a pristine pre-optimization reference tree in `baseline/` used by the equivalence tests, and 63 unit tests. |
 | `dashboard/` | The standalone explorer (zip of the exact released revision) and the three builder scripts that regenerate it from `data/`. |
 | `data/` | The released outcome stores + `loader.py` + `MANIFEST.json` (per-file SHA-256, coverage, schema). |
 | `scripts/verify_release.py` | End-to-end release verification (see below). |
@@ -50,6 +50,10 @@ prebuilt wheels):
 ```bash
 pip install ./otrecon ./forking_paths
 ```
+
+Optional: `pip install './otrecon[speed]'` adds numba, which JIT-compiles
+the fast PELT path (a pure-numpy fallback is used otherwise; outputs are
+identical).
 
 Collecting *new* samples needs a GPU stack (the released dataset was
 collected with HuggingFace transformers on A100-class GPUs; analysis of the
@@ -172,7 +176,12 @@ python dashboard/build_dashboard_standalone.py \
 ```
 
 Step 1 is the expensive one (a few CPU-hours across all 100 questions ×
-both models; it parallelizes over `--workers`).
+both models; it parallelizes over `--workers`, and `--shard i/N` splits the
+work across machines). The released payloads were produced with the
+original ruptures PELT path; the fast reimplementation is validated
+output-identical on the reference fan records but was observed to diverge
+on a very small fraction (~0.03%) of segmentations elsewhere, so set
+`OTRECON_FORCE_RUPTURES=1` when you need strict legacy-path reproduction.
 
 ## Verifying the release
 

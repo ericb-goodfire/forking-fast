@@ -18,6 +18,10 @@ dependencies = [
 dashboard = [
     "plotly>=5.18",
 ]
+# optional: JIT-compiles the fast PELT path (pure-numpy fallback otherwise)
+speed = [
+    "numba>=0.59",
+]
 test = [
     "pytest>=8",
 ]
