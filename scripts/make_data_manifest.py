@@ -79,6 +79,9 @@ def main():
             },
             "s1000": {
                 "files": {
+                    "s1000/llama/row012_stride4.json.gz":
+                        "row 12, Llama track, stride-4 grid, S=1000 "
+                        "(independent development run)",
                     "s1000/llama/row039_stride4.json.gz":
                         "row 39, Llama track, stride-4 grid, S=1000 "
                         "(independent development run)",
@@ -87,11 +90,6 @@ def main():
                         "(extension of the S=200 store: draws 0-199 are "
                         "identical to s200/llama/row039.json.gz)",
                 },
-                "note": (
-                    "The original development runs also produced a row-12 "
-                    "stride-4 S=1000 store; its only copies were lost before "
-                    "release assembly, so it is not included."
-                ),
             },
         },
         "excluded": (

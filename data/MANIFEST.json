@@ -13,10 +13,10 @@
   },
   "s1000": {
    "files": {
+    "s1000/llama/row012_stride4.json.gz": "row 12, Llama track, stride-4 grid, S=1000 (independent development run)",
     "s1000/llama/row039_stride4.json.gz": "row 39, Llama track, stride-4 grid, S=1000 (independent development run)",
     "s1000/llama/row039_everytoken.json.gz": "row 39, Llama track, every-token grid, S=1000 (extension of the S=200 store: draws 0-199 are identical to s200/llama/row039.json.gz)"
-   },
-   "note": "The original development runs also produced a row-12 stride-4 S=1000 store; its only copies were lost before release assembly, so it is not included."
+   }
   }
  },
  "excluded": "Raw-completion text sidecars (per-draw continuation text) are not part of this release; only outcome categories are shipped.",
@@ -26,6 +26,16 @@
   "sha256": "4ade83c0391d42f3eca89046d33fc3777ad27d55f80172059e5640f81bc7a6af"
  },
  "files": {
+  "s1000/llama/row012_stride4.json.gz": {
+   "sha256": "beeb0a98b75c9f0e028bd1222e5084d355d4579906f73a27da6a549647dfcc15",
+   "bytes": 186022,
+   "row_id": 12,
+   "track": "llama",
+   "model": "meta-llama/Meta-Llama-3-8B-Instruct",
+   "s": 1000,
+   "n_positions": 90,
+   "n_branches": 116
+  },
   "s1000/llama/row039_everytoken.json.gz": {
    "sha256": "6a0b93b759342652e65e98d076df8f3ed491ca94c0a98cb97e9e716ae6e2ef16",
    "bytes": 985633,

@@ -88,7 +88,8 @@ def check_data():
 
     expected = {f"s200/{t}/row{i:03d}.json.gz"
                 for t in ("llama", "deepseek") for i in range(100)}
-    expected |= {"s1000/llama/row039_stride4.json.gz",
+    expected |= {"s1000/llama/row012_stride4.json.gz",
+                 "s1000/llama/row039_stride4.json.gz",
                  "s1000/llama/row039_everytoken.json.gz"}
     on_disk = {rel for rel, _ in loader.iter_stores(DATA)}
     if on_disk != expected:
@@ -98,7 +99,7 @@ def check_data():
     if set(manifest["files"]) != expected:
         fail("data coverage", "manifest file set != expected set")
     ok("data coverage",
-       "s200 rows 0-99 x {llama,deepseek} + 2 s1000 stores (202 files)")
+       "s200 rows 0-99 x {llama,deepseek} + 3 s1000 stores (203 files)")
 
     for rel in sorted(expected):
         path = os.path.join(DATA, rel)
@@ -108,7 +109,7 @@ def check_data():
             fail("data sha256", rel)
         if len(raw) != entry["bytes"]:
             fail("data size", rel)
-    ok("data sha256", "202/202 files match the manifest")
+    ok("data sha256", f"{len(expected)}/{len(expected)} files match the manifest")
 
     # identity spot fields for every file
     for rel, entry in manifest["files"].items():

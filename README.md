@@ -121,12 +121,11 @@ part of the release.
 - `data/s200/{llama,deepseek}/rowNNN.json.gz` — tinyMMLU rows 0–99, S=200
   draws per branch. `llama` = Meta-Llama-3-8B-Instruct on an every-token
   grid; `deepseek` = DeepSeek-R1-Distill-Llama-8B on a sentence grid.
-- `data/s1000/llama/row039_stride4.json.gz` — row 39, S=1000, stride-4 grid
-  (an independent development run).
+- `data/s1000/llama/row012_stride4.json.gz` and
+  `data/s1000/llama/row039_stride4.json.gz` — rows 12 and 39, S=1000,
+  stride-4 grid (independent development runs).
 - `data/s1000/llama/row039_everytoken.json.gz` — row 39, S=1000, every-token
   grid; its first 200 draws are exactly the S=200 store (nested prefixes).
-  The development runs also produced a row-12 stride-4 S=1000 store, but its
-  only copies were lost before release assembly, so it is not included.
 
 Each record stores, per observed position `t`, the kept next-token branches
 (token id, probability, and the recorded outcome category of each resampled
